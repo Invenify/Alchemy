@@ -5,11 +5,17 @@ workflows:
     environment:
       flutter: stable
     scripts:
-      - name: Force fix pubspec.yaml
+      - name: Force dependencies from Internet
         script: |
-          # Crée un fichier sans les lignes locales, puis remplace l'original (compatible Mac/Linux)
-          sed '/path: figma_squircle/d' pubspec.yaml > tmp.yaml && mv tmp.yaml pubspec.yaml
-          sed '/path: liquid_progress_indicator_v2/d' pubspec.yaml > tmp.yaml && mv tmp.yaml pubspec.yaml
+          # 1. On supprime le fichier de cache de Flutter qui a mémorisé les erreurs
+          rm -f pubspec.lock
+          
+          # 2. On ajoute une instruction de "surcharge" à la toute fin du pubspec.yaml
+          # Cela force Flutter à chercher la dernière version en ligne ("any") au lieu du dossier local
+          echo "" >> pubspec.yaml
+          echo "dependency_overrides:" >> pubspec.yaml
+          echo "  figma_squircle: any" >> pubspec.yaml
+          echo "  liquid_progress_indicator_v2: any" >> pubspec.yaml
       - name: Get Flutter dependencies
         script: |
           flutter pub get

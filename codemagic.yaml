@@ -5,6 +5,11 @@ workflows:
     environment:
       flutter: stable
     scripts:
+      - name: Fix dependencies
+        script: |
+          # Retire la version locale cassée et télécharge la version officielle d'internet
+          flutter pub remove figma_squircle
+          flutter pub add figma_squircle
       - name: Get Flutter dependencies
         script: |
           flutter pub get

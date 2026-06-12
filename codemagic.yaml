@@ -1,0 +1,18 @@
+workflows:
+  android-workflow:
+    name: Build Android Debug APK
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      dart: stable
+      java: 17
+      androidSdk: 35
+    scripts:
+      - name: Get Flutter dependencies
+        script: |
+          flutter pub get
+      - name: Build debug APK
+        script: |
+          flutter build apk --debug
+    artifacts:
+      - build/app/outputs/flutter-apk/app-debug.apk

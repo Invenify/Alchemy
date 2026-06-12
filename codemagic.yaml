@@ -5,7 +5,7 @@ workflows:
     environment:
       flutter: stable
     scripts:
-      - name: Auto-fix ALL local dependencies
+      - name: Auto-fix ALL dependencies (Paths & Conflicts)
         script: |
           # On repart à zéro avec le cache
           rm -f pubspec.lock
@@ -14,28 +14,45 @@ workflows:
           echo "" >> pubspec.yaml
           echo "dependency_overrides:" >> pubspec.yaml
           
-          # 🚨 NOUVEAU : On force Flutter à ignorer le conflit de version pour json_annotation
-          echo "  json_annotation: any" >> pubspec.yaml
-          
-          # Boucle automatique qui répare les paquets manquants
+          # Boucle magique
           while true; do
             OUTPUT=$(flutter pub get 2>&1)
             
+            # 1. Si ça marche, on a fini !
             if [ $? -eq 0 ]; then
               echo "✅ Toutes les dépendances sont téléchargées avec succès !"
               break
             fi
             
-            PKG=$(echo "$OUTPUT" | grep -o 'could not find package [^ ]*' | head -n 1 | awk '{print $5}')
+            # 2. Cherche une erreur de dossier manquant
+            MISSING_PKG=$(echo "$OUTPUT" | grep -o 'could not find package [^ ]*' | head -n 1 | awk '{print $5}')
             
-            if [ -z "$PKG" ]; then
-              echo "❌ Erreur différente détectée :"
-              echo "$OUTPUT"
-              exit 1
+            if [ ! -z "$MISSING_PKG" ]; then
+              echo "🔧 Paquet local manquant détecté : $MISSING_PKG -> Correction automatique..."
+              echo "  $MISSING_PKG: any" >> pubspec.yaml
+              continue # On relance la boucle
             fi
             
-            echo "🔧 Paquet local détecté : $PKG -> Correction automatique..."
-            echo "  $PKG: any" >> pubspec.yaml
+            # 3. Cherche une erreur de conflit de version
+            # On cherche le format "depends on nom_du_paquet ^version" ou ">=version"
+            CONFLICT_PKG=$(echo "$OUTPUT" | grep -oE 'depends on [a-z0-9_]+ [\^\>\=\<]+[0-9]+' | head -n 1 | awk '{print $3}')
+            
+            if [ ! -z "$CONFLICT_PKG" ]; then
+              # Sécurité anti-boucle infinie (si le paquet a déjà été forcé mais que ça plante encore)
+              if grep -q "  $CONFLICT_PKG: any" pubspec.yaml; then
+                echo "❌ Impossible de résoudre automatiquement le conflit sur $CONFLICT_PKG."
+                echo "$OUTPUT"
+                exit 1
+              fi
+              echo "⚡ Conflit de version détecté sur : $CONFLICT_PKG -> Forçage automatique (any)..."
+              echo "  $CONFLICT_PKG: any" >> pubspec.yaml
+              continue # On relance la boucle
+            fi
+            
+            # 4. Si ce n'est ni un chemin manquant ni un conflit de version, on s'arrête
+            echo "❌ Erreur inconnue détectée :"
+            echo "$OUTPUT"
+            exit 1
           done
 
       - name: Build debug APK

@@ -7,38 +7,28 @@ workflows:
     scripts:
       - name: Auto-fix ALL dependencies (Paths & Conflicts)
         script: |
-          # On repart à zéro avec le cache
           rm -f pubspec.lock
           
-          # On prépare la section des surcharges
           echo "" >> pubspec.yaml
           echo "dependency_overrides:" >> pubspec.yaml
           
-          # Boucle magique
           while true; do
             OUTPUT=$(flutter pub get 2>&1)
             
-            # 1. Si ça marche, on a fini !
             if [ $? -eq 0 ]; then
               echo "✅ Toutes les dépendances sont téléchargées avec succès !"
               break
             fi
             
-            # 2. Cherche une erreur de dossier manquant
             MISSING_PKG=$(echo "$OUTPUT" | grep -o 'could not find package [^ ]*' | head -n 1 | awk '{print $5}')
-            
             if [ ! -z "$MISSING_PKG" ]; then
               echo "🔧 Paquet local manquant détecté : $MISSING_PKG -> Correction automatique..."
               echo "  $MISSING_PKG: any" >> pubspec.yaml
-              continue # On relance la boucle
+              continue
             fi
             
-            # 3. Cherche une erreur de conflit de version
-            # On cherche le format "depends on nom_du_paquet ^version" ou ">=version"
             CONFLICT_PKG=$(echo "$OUTPUT" | grep -oE 'depends on [a-z0-9_]+ [\^\>\=\<]+[0-9]+' | head -n 1 | awk '{print $3}')
-            
             if [ ! -z "$CONFLICT_PKG" ]; then
-              # Sécurité anti-boucle infinie (si le paquet a déjà été forcé mais que ça plante encore)
               if grep -q "  $CONFLICT_PKG: any" pubspec.yaml; then
                 echo "❌ Impossible de résoudre automatiquement le conflit sur $CONFLICT_PKG."
                 echo "$OUTPUT"
@@ -46,14 +36,28 @@ workflows:
               fi
               echo "⚡ Conflit de version détecté sur : $CONFLICT_PKG -> Forçage automatique (any)..."
               echo "  $CONFLICT_PKG: any" >> pubspec.yaml
-              continue # On relance la boucle
+              continue
             fi
             
-            # 4. Si ce n'est ni un chemin manquant ni un conflit de version, on s'arrête
             echo "❌ Erreur inconnue détectée :"
             echo "$OUTPUT"
             exit 1
           done
+
+      - name: Fix Android AGP 9+ Compatibility
+        script: |
+          echo "🔧 Injection des paramètres de compatibilité rétrograde pour Android AGP 9..."
+          
+          # On vérifie que le fichier properties existe et on ajoute les flags de rétrocompatibilité
+          if [ -f "android/gradle.properties" ]; then
+            # Désactive la nouvelle interface DSL d'Android qui casse les vieux plugins
+            echo "android.newDsl=false" >> android/gradle.properties
+            # Réactive l'ancien plugin kotlin-android pour les vieux paquets comme move_to_background
+            echo "android.builtInKotlin=false" >> android/gradle.properties
+            echo "✅ Patch Android appliqué !"
+          else
+            echo "⚠️ Fichier android/gradle.properties introuvable."
+          fi
 
       - name: Build debug APK
         script: |

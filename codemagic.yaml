@@ -10,32 +10,30 @@ workflows:
           # On repart à zéro avec le cache
           rm -f pubspec.lock
           
-          # On prépare la section des surcharges à la fin du fichier
+          # On prépare la section des surcharges
           echo "" >> pubspec.yaml
           echo "dependency_overrides:" >> pubspec.yaml
           
-          # Boucle automatique qui répare les paquets manquants un par un
+          # 🚨 NOUVEAU : On force Flutter à ignorer le conflit de version pour json_annotation
+          echo "  json_annotation: any" >> pubspec.yaml
+          
+          # Boucle automatique qui répare les paquets manquants
           while true; do
-            # On tente de télécharger les dépendances
             OUTPUT=$(flutter pub get 2>&1)
             
-            # Si ça marche (code de sortie 0), on arrête la boucle !
             if [ $? -eq 0 ]; then
               echo "✅ Toutes les dépendances sont téléchargées avec succès !"
               break
             fi
             
-            # Si ça échoue, on cherche le nom du paquet manquant dans le texte de l'erreur
             PKG=$(echo "$OUTPUT" | grep -o 'could not find package [^ ]*' | head -n 1 | awk '{print $5}')
             
-            # S'il n'y a pas de paquet trouvé, c'est une autre erreur, on affiche l'erreur et on arrête
             if [ -z "$PKG" ]; then
               echo "❌ Erreur différente détectée :"
               echo "$OUTPUT"
               exit 1
             fi
             
-            # On a trouvé le paquet ! On l'ajoute à la liste et la boucle recommence
             echo "🔧 Paquet local détecté : $PKG -> Correction automatique..."
             echo "  $PKG: any" >> pubspec.yaml
           done

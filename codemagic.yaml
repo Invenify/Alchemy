@@ -7,9 +7,9 @@ workflows:
     scripts:
       - name: Force fix pubspec.yaml
         script: |
-          # Supprime brutalement les lignes qui pointent vers des dossiers locaux inexistants
-          sed -i '/path: figma_squircle/d' pubspec.yaml
-          sed -i '/path: liquid_progress_indicator_v2/d' pubspec.yaml
+          # Crée un fichier sans les lignes locales, puis remplace l'original (compatible Mac/Linux)
+          sed '/path: figma_squircle/d' pubspec.yaml > tmp.yaml && mv tmp.yaml pubspec.yaml
+          sed '/path: liquid_progress_indicator_v2/d' pubspec.yaml > tmp.yaml && mv tmp.yaml pubspec.yaml
       - name: Get Flutter dependencies
         script: |
           flutter pub get

@@ -7,15 +7,15 @@ workflows:
     scripts:
       - name: Force dependencies from Internet
         script: |
-          # 1. On supprime le fichier de cache de Flutter qui a mémorisé les erreurs
+          # 1. On supprime le fichier de cache
           rm -f pubspec.lock
           
-          # 2. On ajoute une instruction de "surcharge" à la toute fin du pubspec.yaml
-          # Cela force Flutter à chercher la dernière version en ligne ("any") au lieu du dossier local
+          # 2. On ajoute les surcharges pour TOUS les modules locaux manquants
           echo "" >> pubspec.yaml
           echo "dependency_overrides:" >> pubspec.yaml
           echo "  figma_squircle: any" >> pubspec.yaml
           echo "  liquid_progress_indicator_v2: any" >> pubspec.yaml
+          echo "  scrobblenaut: any" >> pubspec.yaml
       - name: Get Flutter dependencies
         script: |
           flutter pub get

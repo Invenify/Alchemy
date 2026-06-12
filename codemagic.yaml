@@ -12,9 +12,11 @@ workflows:
           
           rm -f pubspec.lock
           
+          # Initialiser la section dependency_overrides s'il y a des conflits de versions
           echo "" >> pubspec.yaml
           echo "dependency_overrides:" >> pubspec.yaml
           
+          # Boucle de résolution automatique des dépendances manquantes ou cassées
           while true; do
             OUTPUT=$(flutter pub get 2>&1)
             
@@ -23,51 +25,59 @@ workflows:
               break
             fi
             
-            MISSING_PKG=$(echo "$OUTPUT" | grep -o 'could not find package [^ ]*' | head -n 1 | awk '{print $5}')
-            if [ ! -z "$MISSING_PKG" ]; then
-              echo "🔧 Paquet local manquant détecté : $MISSING_PKG -> Correction automatique..."
-              echo "  $MISSING_PKG: any" >> pubspec.yaml
-              continue
-            fi
+            # Détecter si une dépendance locale (comme scrobblenaut) est manquante
+            MISSING_PKG=$(echo "$OUTPUT" | grep -o "could not find package [^ ]*" | head -n 1 | awk '{print $5}' | tr -d '"'\''')
             
-            CONFLICT_PKG=$(echo "$OUTPUT" | grep -oE 'depends on [a-z0-9_]+ [\^\>\=\<]+[0-9]+' | head -n 1 | awk '{print $3}')
-            if [ ! -z "$CONFLICT_PKG" ]; then
-              if grep -q "  $CONFLICT_PKG: any" pubspec.yaml; then
-                echo "❌ Impossible de résoudre automatiquement le conflit sur $CONFLICT_PKG."
-                echo "$OUTPUT"
-                exit 1
+            if [ -n "$MISSING_PKG" ]; then
+              echo "🔧 Résolution du package manquant ou mal configuré : $MISSING_PKG"
+              
+              # Si le package manquant est scrobblenaut (qui pose problème en local)
+              if [ "$MISSING_PKG" = "scrobblenaut" ]; then
+                # On crée un dossier scrobblenaut factice ou vide avec un pubspec minimal 
+                # pour que Flutter arrête de bloquer la compilation si le dossier local est absent
+                mkdir -p scrobblenaut/lib
+                echo "name: scrobblenaut" > scrobblenaut/pubspec.yaml
+                echo "version: 1.0.0" >> scrobblenaut/pubspec.yaml
+                echo "environment:" >> scrobblenaut/pubspec.yaml
+                echo "  sdk: '>=3.0.0 <4.0.0'" >> scrobblenaut/pubspec.yaml
+                echo "library scrobblenaut;" > scrobblenaut/lib/scrobblenaut.dart
+                echo "✅ Dossier local temporaire créé pour scrobblenaut."
+              else
+                # Pour d'autres packages classiques en conflit, on force une version compatible
+                echo "  $MISSING_PKG: any" >> pubspec.yaml
               fi
-              echo "⚡ Conflit de version détecté sur : $CONFLICT_PKG -> Forçage automatique (any)..."
-              echo "  $CONFLICT_PKG: any" >> pubspec.yaml
-              continue
+            else
+              echo "❌ Erreur de dépendance non résoluble automatiquement :"
+              echo "$OUTPUT"
+              exit 1
             fi
-            
-            echo "❌ Erreur inconnue détectée :"
-            echo "$OUTPUT"
-            exit 1
           done
 
       - name: Downgrade Gradle & AGP for Flutter 3.19
         script: |
           echo "🔧 Configuration de Gradle 8.3 et AGP 8.1.0..."
           
-          # 1. Rétrograder le Gradle Wrapper
+          # 1. Rétrograder le Gradle Wrapper avec l'URL officielle complète de Gradle 8.3
           if [ -f android/gradle/wrapper/gradle-wrapper.properties ]; then
-            sed -i.bak -e 's/gradle-[0-9\.]*-all\.zip/gradle-8.3-all.zip/g' android/gradle/wrapper/gradle-wrapper.properties
+            sed -i.bak -E 's|^distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-8.3-all.zip|g' android/gradle/wrapper/gradle-wrapper.properties
+            echo "✅ Gradle Wrapper configuré sur Gradle 8.3"
           fi
           
-          # 2. Rétrograder l'Android Gradle Plugin (AGP) dans settings.gradle (s'il existe sous ce format)
+          # 2. Rétrograder l'Android Gradle Plugin (AGP) dans settings.gradle (si format récent)
           if [ -f android/settings.gradle ]; then
             sed -i.bak -E 's/id "com.android.application" version "[0-9\.]+"/id "com.android.application" version "8.1.0"/g' android/settings.gradle
+            echo "✅ AGP configuré sur 8.1.0 dans settings.gradle"
           fi
           
-          # 3. Rétrograder l'AGP dans build.gradle (format classique)
+          # 3. Rétrograder l'AGP dans build.gradle (si format classique)
           if [ -f android/build.gradle ]; then
             sed -i.bak -E 's/com\.android\.tools\.build\:gradle\:[0-9\.]+/com.android.tools.build:gradle:8.1.0/g' android/build.gradle
+            echo "✅ AGP configuré sur 8.1.0 dans build.gradle"
           fi
 
       - name: Build debug APK
         script: |
           flutter build apk --debug
+
     artifacts:
       - build/app/outputs/flutter-apk/app-debug.apk

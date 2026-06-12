@@ -16,6 +16,7 @@ workflows:
           echo "  figma_squircle: any" >> pubspec.yaml
           echo "  liquid_progress_indicator_v2: any" >> pubspec.yaml
           echo "  scrobblenaut: any" >> pubspec.yaml
+          echo "  move_to_background: any" >> pubspec.yaml
       - name: Get Flutter dependencies
         script: |
           flutter pub get

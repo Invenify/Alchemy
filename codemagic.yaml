@@ -3,10 +3,14 @@ workflows:
     name: Build Android Debug APK
     max_build_duration: 60
     environment:
-      flutter: 3.19.6 # <-- On fige Flutter sur une version rétro-compatible !
+      flutter: 3.19.6
     scripts:
       - name: Auto-fix ALL dependencies (Paths & Conflicts)
         script: |
+          echo "🔧 Abaissement de la contrainte Dart SDK pour compatibilité..."
+          # On remplace >=3.8.0 par >=3.0.0 dans le pubspec.yaml
+          sed -i.bak 's/>=3.8.0/>=3.0.0/g' pubspec.yaml
+          
           rm -f pubspec.lock
           
           echo "" >> pubspec.yaml

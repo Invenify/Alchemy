@@ -48,11 +48,12 @@ workflows:
         script: |
           echo "🔧 Injection des paramètres de compatibilité rétrograde pour Android AGP 9..."
           
-          # On vérifie que le fichier properties existe et on ajoute les flags de rétrocompatibilité
           if [ -f "android/gradle.properties" ]; then
-            # Désactive la nouvelle interface DSL d'Android qui casse les vieux plugins
+            # On force un saut de ligne pour éviter de coller au texte précédent
+            echo "" >> android/gradle.properties
+            
+            # On ajoute nos paramètres
             echo "android.newDsl=false" >> android/gradle.properties
-            # Réactive l'ancien plugin kotlin-android pour les vieux paquets comme move_to_background
             echo "android.builtInKotlin=false" >> android/gradle.properties
             echo "✅ Patch Android appliqué !"
           else

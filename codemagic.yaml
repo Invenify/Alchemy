@@ -8,7 +8,6 @@ workflows:
       - name: Auto-fix ALL dependencies (Paths & Conflicts)
         script: |
           echo "🔧 Abaissement de la contrainte Dart SDK pour compatibilité..."
-          # On remplace >=3.8.0 par >=3.0.0 dans le pubspec.yaml
           sed -i.bak 's/>=3.8.0/>=3.0.0/g' pubspec.yaml
           
           rm -f pubspec.lock
@@ -47,6 +46,25 @@ workflows:
             echo "$OUTPUT"
             exit 1
           done
+
+      - name: Downgrade Gradle & AGP for Flutter 3.19
+        script: |
+          echo "🔧 Configuration de Gradle 8.3 et AGP 8.1.0..."
+          
+          # 1. Rétrograder le Gradle Wrapper
+          if [ -f android/gradle/wrapper/gradle-wrapper.properties ]; then
+            sed -i.bak -e 's/gradle-[0-9\.]*-all\.zip/gradle-8.3-all.zip/g' android/gradle/wrapper/gradle-wrapper.properties
+          fi
+          
+          # 2. Rétrograder l'Android Gradle Plugin (AGP) dans settings.gradle (s'il existe sous ce format)
+          if [ -f android/settings.gradle ]; then
+            sed -i.bak -E 's/id "com.android.application" version "[0-9\.]+"/id "com.android.application" version "8.1.0"/g' android/settings.gradle
+          fi
+          
+          # 3. Rétrograder l'AGP dans build.gradle (format classique)
+          if [ -f android/build.gradle ]; then
+            sed -i.bak -E 's/com\.android\.tools\.build\:gradle\:[0-9\.]+/com.android.tools.build:gradle:8.1.0/g' android/build.gradle
+          fi
 
       - name: Build debug APK
         script: |
